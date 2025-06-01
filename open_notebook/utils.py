@@ -2,8 +2,8 @@ import re
 import unicodedata
 from importlib.metadata import PackageNotFoundError, version
 from urllib.parse import urlparse
+from pathlib import Path
 
-import requests
 import tomli
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from packaging.version import parse as parse_version
@@ -124,52 +124,43 @@ def surreal_clean(text) -> str:
 
 def get_version_from_github(repo_url: str, branch: str = "main") -> str:
     """
-    Fetch and parse the version from pyproject.toml in a public GitHub repository.
+    Fetch and parse the version from the local pyproject.toml file.
 
     Args:
-        repo_url (str): URL of the GitHub repository
-        branch (str): Branch name to fetch from (defaults to "main")
+        repo_url (str): URL of the GitHub repository (not used, kept for compatibility)
+        branch (str): Branch name to fetch from (not used, kept for compatibility)
 
     Returns:
         str: Version string from pyproject.toml
 
     Raises:
-        ValueError: If the URL is not a valid GitHub repository URL
-        requests.RequestException: If there's an error fetching the file
+        FileNotFoundError: If pyproject.toml is not found in either location
         KeyError: If version information is not found in pyproject.toml
     """
-    # Parse the GitHub URL
-    parsed_url = urlparse(repo_url)
-    if "github.com" not in parsed_url.netloc:
-        raise ValueError("Not a GitHub URL")
+    # Get the project root directory (assuming this file is in open_notebook/ subdirectory)
+    current_file = Path(__file__)
+    project_root = current_file.parent.parent
+    pyproject_path = project_root / "pyproject.toml"
+    
+    # Check if pyproject.toml exists in project root, otherwise try fallback location
+    if not pyproject_path.exists():
+        # Fallback to Docker container location
+        pyproject_path = Path("/app/conf/pyproject.toml")
+        if not pyproject_path.exists():
+            raise FileNotFoundError(f"pyproject.toml not found in project root or at /app/conf/pyproject.toml")
 
-    # Extract owner and repo name from path
-    path_parts = parsed_url.path.strip("/").split("/")
-    if len(path_parts) < 2:
-        raise ValueError("Invalid GitHub repository URL")
-
-    owner, repo = path_parts[0], path_parts[1]
-
-    # Construct raw content URL for pyproject.toml
-    raw_url = (
-        f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/pyproject.toml"
-    )
-
-    # Fetch the file
-    response = requests.get(raw_url)
-    response.raise_for_status()
-
-    # Parse TOML content
-    pyproject_data = tomli.loads(response.text)
+    # Read and parse the local pyproject.toml file
+    with open(pyproject_path, "rb") as f:
+        pyproject_data = tomli.load(f)
 
     # Try to find version in different possible locations
     try:
-        # Check project.version first (poetry style)
-        version = pyproject_data["tool"]["poetry"]["version"]
+        # Check project.version first (standard style)
+        version = pyproject_data["project"]["version"]
     except KeyError:
         try:
-            # Check project.version (standard style)
-            version = pyproject_data["project"]["version"]
+            # Check tool.poetry.version (poetry style)
+            version = pyproject_data["tool"]["poetry"]["version"]
         except KeyError:
             raise KeyError("Version not found in pyproject.toml")
 

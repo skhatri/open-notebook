@@ -18,6 +18,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://install.surrealdb.com | sh
 WORKDIR /app
 
 COPY . /app
+COPY pyproject.toml /app/conf/pyproject.toml
 RUN uv sync
 
 # Create supervisor configuration directory

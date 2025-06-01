@@ -1,21 +1,10 @@
-# Use Python 3.11 slim image as base
-FROM python:3.11-slim-bookworm
-
-# Install uv using the official method
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-
-# Install system dependencies required for building certain Python packages
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    gcc git \
-    libmagic-dev \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+FROM skhatri/open-notebook:base
 
 # Set the working directory in the container to /app
 WORKDIR /app
 
 COPY . /app
+COPY pyproject.toml /app/conf/pyproject.toml
 
 RUN uv sync
 EXPOSE 8502
