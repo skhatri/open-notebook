@@ -16,7 +16,7 @@ services:
     user: root
     profiles: [db_only, multi]
   open_notebook:
-    image: skhatri/open-notebook:latest
+    image: skhatri/open-notebook:v1
     ports:
       - "8080:8502"
     env_file:
